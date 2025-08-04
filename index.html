@@ -111,14 +111,17 @@
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
-    // Utility normalize function
+    // Utility normalize function yang lebih cerdas (Indonesia-friendly)
     function normalize(str) {
       if (typeof str !== "string") return "";
-      return str
-        .toLowerCase()
-        .replace(/[.,]/g, "")
-        .replace(/-/g, " ")
-        .trim();
+      let s = str.toLowerCase();
+      // Hapus istilah administratif umum
+      s = s.replace(/\b(kabupaten|kab\.|kab|kota|provinsi|prov\.)\b/g, "");
+      s = s.replace(/[.,]/g, "");
+      s = s.replace(/-/g, " ");
+      s = s.replace(/\s+/g, " "); // Ganti double space jadi single space
+      s = s.trim();
+      return s;
     }
 
     let masterData = [];
