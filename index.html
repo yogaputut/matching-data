@@ -1,0 +1,421 @@
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fuzzy Matching Kabupaten App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+  />
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+  <header class="bg-blue-700 text-white p-4 flex items-center justify-center">
+    <h1 class="text-2xl font-semibold">
+      Matching Data App
+    </h1>
+  </header>
+
+  <main class="flex-grow container mx-auto p-4 max-w-5xl">
+    <section class="mb-8 bg-white rounded-lg shadow p-6">
+      <h2 class="text-xl font-semibold mb-4 text-blue-700 flex items-center gap-2">
+        <i class="fas fa-database"></i> Upload Masterlist Data (Excel or CSV)
+      </h2>
+      <input
+        type="file"
+        id="masterFileInput"
+        accept=".xlsx,.xls,.csv"
+        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer"
+      />
+      <div id="masterColumnDropdown" class="relative mt-4 hidden w-64">
+        <button
+          id="masterColumnBtn"
+          class="w-full bg-white border border-gray-300 rounded shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+          aria-labelledby="masterColumnLabel"
+        >
+          <span id="masterColumnSelected" class="block truncate text-gray-700">Select column</span>
+          <span class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+            <i class="fas fa-chevron-down text-gray-400"></i>
+          </span>
+        </button>
+        <ul
+          id="masterColumnList"
+          tabindex="-1"
+          role="listbox"
+          aria-labelledby="masterColumnLabel"
+          class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm hidden"
+        >
+        </ul>
+      </div>
+    </section>
+
+    <section class="mb-8 bg-white rounded-lg shadow p-6">
+      <h2 class="text-xl font-semibold mb-4 text-blue-700 flex items-center gap-2">
+        <i class="fas fa-file-upload"></i> Upload Target Data (Excel or CSV)
+      </h2>
+      <input
+        type="file"
+        id="targetFileInput"
+        accept=".xlsx,.xls,.csv"
+        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer"
+      />
+      <div id="targetColumnDropdown" class="relative mt-4 hidden w-64">
+        <button
+          id="targetColumnBtn"
+          class="w-full bg-white border border-gray-300 rounded shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+          aria-labelledby="targetColumnLabel"
+        >
+          <span id="targetColumnSelected" class="block truncate text-gray-700">Select column</span>
+          <span class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+            <i class="fas fa-chevron-down text-gray-400"></i>
+          </span>
+        </button>
+        <ul
+          id="targetColumnList"
+          tabindex="-1"
+          role="listbox"
+          aria-labelledby="targetColumnLabel"
+          class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm hidden"
+        >
+        </ul>
+      </div>
+    </section>
+
+    <section class="mb-8 bg-white rounded-lg shadow p-6">
+      <h2 class="text-xl font-semibold mb-4 text-blue-700 flex items-center gap-2">
+        <i class="fas fa-cogs"></i> Matching Options
+      </h2>
+      <label for="thresholdRange" class="block mb-2 font-medium text-gray-700"
+        >Similarity Threshold: <span id="thresholdValue" class="font-semibold">80</span>%</label
+      >
+      <input
+        type="range"
+        id="thresholdRange"
+        min="50"
+        max="100"
+        value="80"
+        step="1"
+        class="w-full"
+      />
+    </section>
+
+    <section class="mb-8 bg-white rounded-lg shadow p-6 flex flex-col items-center">
+      <button
+        id="runMatchBtn"
+        disabled
+        class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded w-full max-w-xs transition"
+      >
+        <i class="fas fa-play mr-2"></i> Run Fuzzy Matching
+      </button>
+      <p id="statusText" class="mt-4 text-gray-600"></p>
+    </section>
+
+    <section id="resultSection" class="hidden bg-white rounded-lg shadow p-6">
+      <h2 class="text-xl font-semibold mb-4 text-blue-700 flex items-center gap-2">
+        <i class="fas fa-table"></i> Matching Results Preview
+      </h2>
+      <div class="overflow-x-auto max-h-96">
+        <table class="min-w-full border border-gray-300 text-sm">
+          <thead class="bg-blue-100 sticky top-0">
+            <tr>
+              <th class="border border-gray-300 px-3 py-1 text-left">Original Name</th>
+              <th class="border border-gray-300 px-3 py-1 text-left">Matched Name</th>
+              <th class="border border-gray-300 px-3 py-1 text-left">Similarity (%)</th>
+            </tr>
+          </thead>
+          <tbody id="resultTableBody"></tbody>
+        </table>
+      </div>
+      <button
+        id="downloadBtn"
+        class="mt-4 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded flex items-center gap-2"
+      >
+        <i class="fas fa-file-excel"></i> Download Result Excel
+      </button>
+    </section>
+  </main>
+
+  <footer class="bg-blue-700 text-white p-4 text-center text-sm">
+    &copy; 2024 Matching Data <div yogapututa@gmail.com=""></div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+    // Utility normalize function similar to python version
+    function normalize(str) {
+      if (typeof str !== "string") return "";
+      return str
+        .toLowerCase()
+        .replace(/[.,]/g, "")
+        .replace(/-/g, " ")
+        .trim();
+    }
+
+    let masterData = [];
+    let masterLabels = [];
+    let targetData = [];
+    let masterColumn = "";
+    let targetColumn = "";
+    let fuse;
+    let threshold = 80;
+
+    const masterFileInput = document.getElementById("masterFileInput");
+    const targetFileInput = document.getElementById("targetFileInput");
+
+    const masterColumnDropdown = document.getElementById("masterColumnDropdown");
+    const masterColumnBtn = document.getElementById("masterColumnBtn");
+    const masterColumnSelected = document.getElementById("masterColumnSelected");
+    const masterColumnList = document.getElementById("masterColumnList");
+
+    const targetColumnDropdown = document.getElementById("targetColumnDropdown");
+    const targetColumnBtn = document.getElementById("targetColumnBtn");
+    const targetColumnSelected = document.getElementById("targetColumnSelected");
+    const targetColumnList = document.getElementById("targetColumnList");
+
+    const runMatchBtn = document.getElementById("runMatchBtn");
+    const statusText = document.getElementById("statusText");
+    const resultSection = document.getElementById("resultSection");
+    const resultTableBody = document.getElementById("resultTableBody");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const thresholdRange = document.getElementById("thresholdRange");
+    const thresholdValue = document.getElementById("thresholdValue");
+
+    function readFile(file, callback) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+        callback(jsonData);
+      };
+      if (file.name.endsWith(".csv")) {
+        // Use PapaParse for CSV
+        reader.onload = function (e) {
+          const csvData = e.target.result;
+          const results = Papa.parse(csvData, { header: true, skipEmptyLines: true });
+          callback(results.data);
+        };
+        reader.readAsText(file);
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
+    }
+
+    function populateDropdown(data, listElement, selectedElement, dropdownContainer, isMaster) {
+      const columns = Object.keys(data[0] || {});
+      listElement.innerHTML = "";
+      columns.forEach((col, idx) => {
+        const li = document.createElement("li");
+        li.setAttribute("role", "option");
+        li.setAttribute("tabindex", "-1");
+        li.className =
+          "text-gray-900 cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-blue-600 hover:text-white";
+        li.textContent = col;
+        li.addEventListener("click", () => {
+          selectedElement.textContent = col;
+          if (isMaster) {
+            masterColumn = col;
+          } else {
+            targetColumn = col;
+          }
+          dropdownContainer.classList.add("hidden");
+          checkReadyToRun();
+        });
+        listElement.appendChild(li);
+      });
+      dropdownContainer.classList.remove("hidden");
+    }
+
+    function toggleDropdown(dropdownContainer) {
+      if (dropdownContainer.classList.contains("hidden")) {
+        dropdownContainer.classList.remove("hidden");
+      } else {
+        dropdownContainer.classList.add("hidden");
+      }
+    }
+
+    masterFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      statusText.textContent = "Loading masterlist data...";
+      readFile(file, (data) => {
+        masterData = data;
+        if (masterData.length === 0) {
+          statusText.textContent = "Masterlist file is empty or invalid.";
+          return;
+        }
+        populateDropdown(masterData, masterColumnList, masterColumnSelected, masterColumnDropdown, true);
+        statusText.textContent = "Masterlist loaded. Please select the column.";
+      });
+    });
+
+    targetFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      statusText.textContent = "Loading target data...";
+      readFile(file, (data) => {
+        targetData = data;
+        if (targetData.length === 0) {
+          statusText.textContent = "Target file is empty or invalid.";
+          return;
+        }
+        populateDropdown(targetData, targetColumnList, targetColumnSelected, targetColumnDropdown, false);
+        statusText.textContent = "Target data loaded. Please select the column.";
+      });
+    });
+
+    masterColumnBtn.addEventListener("click", () => {
+      masterColumnDropdown.classList.toggle("hidden");
+    });
+
+    targetColumnBtn.addEventListener("click", () => {
+      targetColumnDropdown.classList.toggle("hidden");
+    });
+
+    // Close dropdowns if clicked outside
+    document.addEventListener("click", (e) => {
+      if (!masterColumnDropdown.contains(e.target) && e.target !== masterColumnBtn) {
+        masterColumnDropdown.classList.add("hidden");
+      }
+      if (!targetColumnDropdown.contains(e.target) && e.target !== targetColumnBtn) {
+        targetColumnDropdown.classList.add("hidden");
+      }
+    });
+
+    thresholdRange.addEventListener("input", (e) => {
+      threshold = parseInt(e.target.value);
+      thresholdValue.textContent = threshold;
+    });
+
+    function checkReadyToRun() {
+      if (
+        masterData.length > 0 &&
+        targetData.length > 0 &&
+        masterColumn &&
+        targetColumn
+      ) {
+        runMatchBtn.disabled = false;
+      } else {
+        runMatchBtn.disabled = true;
+      }
+    }
+
+    // Normalize function for labels
+    function normalizeLabel(label) {
+      return normalize(label);
+    }
+
+    function buildFuseIndex() {
+      masterLabels = masterData
+        .map((row) => row[masterColumn])
+        .filter((v) => v !== undefined && v !== null && v !== "")
+        .map((v) => ({ label: v, norm: normalizeLabel(v) }));
+
+      // Fuse.js options for fuzzy searching normalized labels
+      fuse = new Fuse(masterLabels, {
+        keys: ["norm"],
+        includeScore: true,
+        threshold: 1 - threshold / 100,
+        ignoreLocation: true,
+        isCaseSensitive: false,
+        useExtendedSearch: false,
+      });
+    }
+
+    function runMatching() {
+      statusText.textContent = "Running fuzzy matching...";
+      resultTableBody.innerHTML = "";
+      resultSection.classList.add("hidden");
+
+      buildFuseIndex();
+
+      const results = [];
+
+      for (const row of targetData) {
+        const originalName = row[targetColumn];
+        const normName = normalizeLabel(originalName);
+        if (!normName) {
+          results.push({
+            original: originalName,
+            matched: "TIDAK DIKENALI",
+            score: 0,
+          });
+          continue;
+        }
+        const searchResult = fuse.search(normName, { limit: 1 });
+        if (
+          searchResult.length > 0 &&
+          searchResult[0].score !== undefined &&
+          (1 - searchResult[0].score) * 100 >= threshold
+        ) {
+          results.push({
+            original: originalName,
+            matched: searchResult[0].item.label,
+            score: Math.round((1 - searchResult[0].score) * 100),
+          });
+        } else {
+          results.push({
+            original: originalName,
+            matched: "TIDAK DIKENALI",
+            score: 0,
+          });
+        }
+      }
+
+      // Show preview table (limit 50 rows)
+      const previewRows = results.slice(0, 50);
+      for (const r of previewRows) {
+        const tr = document.createElement("tr");
+        tr.className = "border-b border-gray-200";
+        tr.innerHTML = `
+          <td class="border border-gray-300 px-3 py-1">${r.original}</td>
+          <td class="border border-gray-300 px-3 py-1">${r.matched}</td>
+          <td class="border border-gray-300 px-3 py-1">${r.score}</td>
+        `;
+        resultTableBody.appendChild(tr);
+      }
+
+      resultSection.classList.remove("hidden");
+      statusText.textContent = `Matching completed. Showing first ${previewRows.length} results. You can download the full result below.`;
+
+      // Store results for download
+      window.matchingResults = results;
+    }
+
+    runMatchBtn.addEventListener("click", () => {
+      runMatching();
+    });
+
+    downloadBtn.addEventListener("click", () => {
+      if (!window.matchingResults) return;
+
+      // Prepare data for XLSX export
+      const exportData = targetData.map((row, i) => {
+        return {
+          ...row,
+          [targetColumn + "_fix"]: window.matchingResults[i]
+            ? window.matchingResults[i].matched
+            : "TIDAK DIKENALI",
+          similarity: window.matchingResults[i]
+            ? window.matchingResults[i].score
+            : 0,
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Matching Result");
+
+      XLSX.writeFile(workbook, "nama_kab_output_fuzzy_rs.xlsx");
+    });
+  </script>
+</body>
+</html>
