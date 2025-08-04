@@ -187,17 +187,9 @@
     const thresholdValue = document.getElementById("thresholdValue");
 
     function readFile(file, callback) {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-        callback(jsonData);
-      };
       if (file.name.endsWith(".csv")) {
-        // Use PapaParse for CSV
+        // Gunakan PapaParse untuk CSV
+        const reader = new FileReader();
         reader.onload = function (e) {
           const csvData = e.target.result;
           const results = Papa.parse(csvData, { header: true, skipEmptyLines: true });
@@ -205,9 +197,25 @@
         };
         reader.readAsText(file);
       } else {
+        // Gunakan XLSX untuk Excel
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: "array" });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+            callback(jsonData);
+          } catch (err) {
+            statusText.textContent = "Gagal membaca file Excel. Pastikan file benar dan bukan hasil export aplikasi aneh.";
+            callback([]);
+          }
+        };
         reader.readAsArrayBuffer(file);
       }
     }
+
 
     function populateDropdown(data, listElement, selectedElement, dropdownContainer, isMaster) {
       const columns = Object.keys(data[0] || {});
