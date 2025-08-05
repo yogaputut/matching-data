@@ -63,7 +63,6 @@
         </ul>
       </div>
     </section>
-
     <!-- Matching Options -->
     <section class="mb-8 bg-white rounded-lg shadow p-6">
       <h2 class="text-xl font-semibold mb-4 text-blue-700 flex items-center gap-2">
@@ -73,7 +72,6 @@
         >Similarity Threshold: <span id="thresholdValue" class="font-semibold">80</span>%</label>
       <input type="range" id="thresholdRange" min="50" max="100" value="80" step="1" class="w-full"/>
     </section>
-
     <section class="mb-8 bg-white rounded-lg shadow p-6 flex flex-col items-center">
       <button id="runMatchBtn" disabled
         class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded w-full max-w-xs transition">
@@ -81,7 +79,6 @@
       </button>
       <p id="statusText" class="mt-4 text-gray-600"></p>
     </section>
-
     <section id="resultSection" class="hidden bg-white rounded-lg shadow p-6">
       <h2 class="text-xl font-semibold mb-4 text-blue-700 flex items-center gap-2">
         <i class="fas fa-table"></i> Matching Results Preview
@@ -111,6 +108,7 @@
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
+    // === Utility
     function normalize(str) {
       if (typeof str !== "string") return "";
       let s = str.toLowerCase();
@@ -125,11 +123,10 @@
       const low = str.toLowerCase();
       if (low.startsWith("kota")) return "kota";
       if (low.startsWith("kab")) return "kab";
-      return "kab"; // default jika tanpa awalan kota/kab
+      return "kab"; // default
     }
     let masterData = [], masterLabels = [], targetData = [], masterColumn = "", targetColumn = "", threshold = 80;
-
-    // --- Dropdown Handler (fix: toggle ul only, never hide div) ---
+    // === Dropdown handler
     const masterFileInput = document.getElementById("masterFileInput");
     const targetFileInput = document.getElementById("targetFileInput");
     const masterColumnDropdown = document.getElementById("masterColumnDropdown");
@@ -147,7 +144,6 @@
     const downloadBtn = document.getElementById("downloadBtn");
     const thresholdRange = document.getElementById("thresholdRange");
     const thresholdValue = document.getElementById("thresholdValue");
-
     function readFile(file, callback) {
       if (file.name.endsWith(".csv")) {
         const reader = new FileReader();
@@ -193,9 +189,8 @@
         });
         listElement.appendChild(li);
       });
-      listElement.classList.remove("hidden");
     }
-
+    // Toggle dropdowns
     masterColumnBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       masterColumnList.classList.toggle("hidden");
@@ -204,14 +199,12 @@
       e.stopPropagation();
       targetColumnList.classList.toggle("hidden");
     });
-    // Keep dropdown open until clicked outside
     document.addEventListener("mousedown", (e) => {
       if (!masterColumnDropdown.contains(e.target)) masterColumnList.classList.add("hidden");
       if (!targetColumnDropdown.contains(e.target)) targetColumnList.classList.add("hidden");
     });
     masterColumnList.addEventListener("mousedown", e => e.stopPropagation());
     targetColumnList.addEventListener("mousedown", e => e.stopPropagation());
-
     masterFileInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -238,16 +231,13 @@
         statusText.textContent = "Target data loaded. Please select the column.";
       });
     });
-
     thresholdRange.addEventListener("input", (e) => {
       threshold = parseInt(e.target.value);
       thresholdValue.textContent = threshold;
     });
-
     function checkReadyToRun() {
       runMatchBtn.disabled = !(masterData.length > 0 && targetData.length > 0 && masterColumn && targetColumn);
     }
-
     function buildFuseIndex() {
       masterLabels = masterData
         .map((row) => {
@@ -270,10 +260,8 @@
         const originalName = row[targetColumn];
         const normName = normalize(originalName);
         const adminType = extractAdminType(originalName);
-    
         // Ambil kandidat dengan adminType yang sama
         const candidates = masterLabels.filter(m => m.adminType === adminType);
-    
         // 1. Cek exact match
         const exact = candidates.find(c => c.norm === normName);
         if (exact) {
@@ -284,7 +272,6 @@
           });
           continue;
         }
-    
         // 2. Fuzzy Matching
         const fuseLocal = new Fuse(candidates, {
           keys: ["norm"],
@@ -309,23 +296,6 @@
           results.push({ original: originalName, matched: "TIDAK DIKENALI", score: 0 });
         }
       }
-  // Show preview table (limit 50 rows)
-  const previewRows = results.slice(0, 50);
-  for (const r of previewRows) {
-    const tr = document.createElement("tr");
-    tr.className = "border-b border-gray-200";
-    tr.innerHTML = `
-      <td class="border border-gray-300 px-3 py-1">${r.original}</td>
-      <td class="border border-gray-300 px-3 py-1">${r.matched}</td>
-      <td class="border border-gray-300 px-3 py-1">${r.score}</td>
-    `;
-    resultTableBody.appendChild(tr);
-  }
-  resultSection.classList.remove("hidden");
-  statusText.textContent = `Matching completed. Showing first ${previewRows.length} results. You can download the full result below.`;
-  window.matchingResults = results;
-}
-
       // Show preview table (limit 50 rows)
       const previewRows = results.slice(0, 50);
       for (const r of previewRows) {
