@@ -287,19 +287,17 @@
       }
     }
 
-    function buildFuseIndex() {
+        function buildFuseIndex() {
       masterLabels = masterData
-        .map((row) => row[masterColumn])
-        .filter((v) => v !== undefined && v !== null && v !== "")
-        .map((v) => ({ label: v, norm: normalize(v) }));
-      fuse = new Fuse(masterLabels, {
-        keys: ["norm"],
-        includeScore: true,
-        threshold: 1 - threshold / 100,
-        ignoreLocation: true,
-        isCaseSensitive: false,
-        useExtendedSearch: false,
-      });
+        .map((row) => {
+          const label = row[masterColumn];
+          return {
+            label: label,
+            norm: normalize(label),
+            adminType: extractAdminType(label)
+          };
+        })
+        .filter((v) => v.label !== undefined && v.label !== null && v.label !== "");
     }
 
     function runMatching() {
