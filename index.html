@@ -111,18 +111,25 @@
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
-    // Utility normalize function yang lebih cerdas (Indonesia-friendly)
+    // Normalisasi tanpa menghapus "kab"/"kota" di awal
     function normalize(str) {
       if (typeof str !== "string") return "";
       let s = str.toLowerCase();
-      // Hapus istilah administratif umum
-      s = s.replace(/\b(kabupaten|kab\.|kab|kota|provinsi|prov\.)\b/g, "");
+      s = s.replace(/\b(provinsi|prov\.)\b/g, ""); // hanya hapus provinsi
       s = s.replace(/[.,]/g, "");
       s = s.replace(/-/g, " ");
-      s = s.replace(/\s+/g, " "); // Ganti double space jadi single space
+      s = s.replace(/\s+/g, " ");
       s = s.trim();
       return s;
     }
+    
+    function extractAdminType(str) {
+      const low = str.toLowerCase();
+      if (low.startsWith("kota")) return "kota";
+      if (low.startsWith("kab")) return "kab";
+      return "";
+    }
+
 
     let masterData = [];
     let masterLabels = [];
@@ -299,17 +306,32 @@
       statusText.textContent = "Running fuzzy matching...";
       resultTableBody.innerHTML = "";
       resultSection.classList.add("hidden");
-      buildFuseIndex();
-
+    
       const results = [];
       for (const row of targetData) {
         const originalName = row[targetColumn];
         const normName = normalize(originalName);
-        if (!normName) {
+        const adminType = extractAdminType(originalName);
+    
+        // Filter master hanya yang adminType sama
+        const candidates = masterLabels.filter(m => m.adminType === adminType);
+    
+        // Buat fuse instance untuk kandidat yang sudah difilter
+        const fuseLocal = new Fuse(candidates, {
+          keys: ["norm"],
+          includeScore: true,
+          threshold: 1 - threshold / 100,
+          ignoreLocation: true,
+          isCaseSensitive: false,
+          useExtendedSearch: false,
+        });
+    
+        if (!normName || !adminType || candidates.length === 0) {
           results.push({ original: originalName, matched: "TIDAK DIKENALI", score: 0 });
           continue;
         }
-        const searchResult = fuse.search(normName, { limit: 1 });
+    
+        const searchResult = fuseLocal.search(normName, { limit: 1 });
         if (
           searchResult.length > 0 &&
           searchResult[0].score !== undefined &&
@@ -324,7 +346,7 @@
           results.push({ original: originalName, matched: "TIDAK DIKENALI", score: 0 });
         }
       }
-
+    
       // Show preview table (limit 50 rows)
       const previewRows = results.slice(0, 50);
       for (const r of previewRows) {
