@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Matching Data App V-1</title>
+  <title>Matching Data App V.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"/>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
@@ -11,7 +11,7 @@
 <body class="bg-gray-50 min-h-screen flex flex-col">
   <header class="bg-blue-700 text-white p-4 flex items-center justify-center">
     <h1 class="text-2xl font-semibold">
-      Matching Data App V-1
+      Matching Data App V.1
     </h1>
   </header>
 
@@ -122,22 +122,21 @@
       s = s.trim();
       return s;
     }
-    
     function extractAdminType(str) {
       const low = str.toLowerCase();
       if (low.startsWith("kota")) return "kota";
       if (low.startsWith("kab")) return "kab";
-      return "";
+      // Default: jika tidak ada "kota"/"kab" → anggap kabupaten
+      return "kab";
     }
-
-
     let masterData = [];
     let masterLabels = [];
     let targetData = [];
     let masterColumn = "";
     let targetColumn = "";
-    let fuse;
     let threshold = 80;
+
+    // ... element selectors sama
 
     const masterFileInput = document.getElementById("masterFileInput");
     const targetFileInput = document.getElementById("targetFileInput");
@@ -211,7 +210,6 @@
       dropdownContainer.classList.remove("hidden");
     }
 
-    // Agar klik di list tidak nutup dropdown sebelum milih
     masterColumnList.addEventListener("mousedown", e => e.stopPropagation());
     targetColumnList.addEventListener("mousedown", e => e.stopPropagation());
 
@@ -250,14 +248,11 @@
       masterColumnList.classList.toggle("hidden");
       masterColumnDropdown.classList.toggle("hidden");
     });
-
     targetColumnBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       targetColumnList.classList.toggle("hidden");
       targetColumnDropdown.classList.toggle("hidden");
     });
-
-    // Close dropdowns if clicked outside
     document.addEventListener("mousedown", (e) => {
       if (!masterColumnDropdown.contains(e.target) && e.target !== masterColumnBtn) {
         masterColumnList.classList.add("hidden");
@@ -268,7 +263,6 @@
         targetColumnDropdown.classList.add("hidden");
       }
     });
-
     thresholdRange.addEventListener("input", (e) => {
       threshold = parseInt(e.target.value);
       thresholdValue.textContent = threshold;
@@ -287,7 +281,7 @@
       }
     }
 
-        function buildFuseIndex() {
+    function buildFuseIndex() {
       masterLabels = masterData
         .map((row) => {
           const label = row[masterColumn];
@@ -299,22 +293,21 @@
         })
         .filter((v) => v.label !== undefined && v.label !== null && v.label !== "");
     }
-
     function runMatching() {
       statusText.textContent = "Running fuzzy matching...";
       resultTableBody.innerHTML = "";
       resultSection.classList.add("hidden");
-    
+      buildFuseIndex();
       const results = [];
       for (const row of targetData) {
         const originalName = row[targetColumn];
         const normName = normalize(originalName);
         const adminType = extractAdminType(originalName);
     
-        // Filter master hanya yang adminType sama
+        // 1. Selalu filter adminType (sudah default ke "kab" jika tidak ada awalan)
         const candidates = masterLabels.filter(m => m.adminType === adminType);
     
-        // Buat fuse instance untuk kandidat yang sudah difilter
+        // Buat fuse instance utk kandidat
         const fuseLocal = new Fuse(candidates, {
           keys: ["norm"],
           includeScore: true,
@@ -324,12 +317,10 @@
           useExtendedSearch: false,
         });
     
-        if (!normName || !adminType || candidates.length === 0) {
-          results.push({ original: originalName, matched: "TIDAK DIKENALI", score: 0 });
-          continue;
-        }
+        const searchResult = normName
+          ? fuseLocal.search(normName, { limit: 1 })
+          : [];
     
-        const searchResult = fuseLocal.search(normName, { limit: 1 });
         if (
           searchResult.length > 0 &&
           searchResult[0].score !== undefined &&
@@ -344,7 +335,6 @@
           results.push({ original: originalName, matched: "TIDAK DIKENALI", score: 0 });
         }
       }
-    
       // Show preview table (limit 50 rows)
       const previewRows = results.slice(0, 50);
       for (const r of previewRows) {
@@ -357,14 +347,28 @@
         `;
         resultTableBody.appendChild(tr);
       }
-
+      resultSection.classList.remove("hidden");
+      statusText.textContent = `Matching completed. Showing first ${previewRows.length} results.`;
+      window.matchingResults = results;
+    }
+      // Show preview table (limit 50 rows)
+      const previewRows = results.slice(0, 50);
+      for (const r of previewRows) {
+        const tr = document.createElement("tr");
+        tr.className = "border-b border-gray-200";
+        tr.innerHTML = `
+          <td class="border border-gray-300 px-3 py-1">${r.original}</td>
+          <td class="border border-gray-300 px-3 py-1">${r.matched}</td>
+          <td class="border border-gray-300 px-3 py-1">${r.score}</td>
+        `;
+        resultTableBody.appendChild(tr);
+      }
       resultSection.classList.remove("hidden");
       statusText.textContent = `Matching completed. Showing first ${previewRows.length} results. You can download the full result below.`;
       window.matchingResults = results;
     }
 
     runMatchBtn.addEventListener("click", () => runMatching());
-
     downloadBtn.addEventListener("click", () => {
       if (!window.matchingResults) return;
       const exportData = targetData.map((row, i) => ({
