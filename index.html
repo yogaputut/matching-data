@@ -270,9 +270,22 @@
         const originalName = row[targetColumn];
         const normName = normalize(originalName);
         const adminType = extractAdminType(originalName);
-
-        // Default to kabupaten if not starts with kota/kab
+    
+        // Ambil kandidat dengan adminType yang sama
         const candidates = masterLabels.filter(m => m.adminType === adminType);
+    
+        // 1. Cek exact match
+        const exact = candidates.find(c => c.norm === normName);
+        if (exact) {
+          results.push({
+            original: originalName,
+            matched: exact.label,
+            score: 100,
+          });
+          continue;
+        }
+    
+        // 2. Fuzzy Matching
         const fuseLocal = new Fuse(candidates, {
           keys: ["norm"],
           includeScore: true,
@@ -296,6 +309,23 @@
           results.push({ original: originalName, matched: "TIDAK DIKENALI", score: 0 });
         }
       }
+  // Show preview table (limit 50 rows)
+  const previewRows = results.slice(0, 50);
+  for (const r of previewRows) {
+    const tr = document.createElement("tr");
+    tr.className = "border-b border-gray-200";
+    tr.innerHTML = `
+      <td class="border border-gray-300 px-3 py-1">${r.original}</td>
+      <td class="border border-gray-300 px-3 py-1">${r.matched}</td>
+      <td class="border border-gray-300 px-3 py-1">${r.score}</td>
+    `;
+    resultTableBody.appendChild(tr);
+  }
+  resultSection.classList.remove("hidden");
+  statusText.textContent = `Matching completed. Showing first ${previewRows.length} results. You can download the full result below.`;
+  window.matchingResults = results;
+}
+
       // Show preview table (limit 50 rows)
       const previewRows = results.slice(0, 50);
       for (const r of previewRows) {
